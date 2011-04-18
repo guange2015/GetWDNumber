@@ -15,7 +15,7 @@ namespace GetWDNumber
         public static void write2txt(string logfile, string content)
         {
             m.WaitOne();
-            FileStream file = File.Open(logfile, FileMode.OpenOrCreate);
+            FileStream file = File.Open(logfile, FileMode.Append);
             byte[] data = Encoding.GetEncoding(sResponseEncoding).GetBytes(content+"\r\n");
             file.Write(data, 0, data.Length);
             file.Close();

@@ -49,7 +49,7 @@ namespace GetWDNumber
 
         private static Mutex m = new Mutex();
         Thread myThread = null;
-        private static string write_file_path =System.AppDomain.CurrentDomain.BaseDirectory + DateTime.Now.ToString("yyyyMMdd")+".txt";
+        private static string write_file_path =System.AppDomain.CurrentDomain.BaseDirectory + DateTime.Now.ToString("yyyyMMdd")+".csv";
 
         #region country
         string[,] countryCode = {
@@ -1040,6 +1040,7 @@ namespace GetWDNumber
                                 data = data.Replace("&dagger;</a>", "");
                                 data = data.Replace(">", "");
                                 data = data.Replace("\"", "");
+                                data = data.Replace(")", "");
                             }
                             ss.Add(data);
                         }
