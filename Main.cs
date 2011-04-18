@@ -11,37 +11,45 @@ using System.IO;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Configuration;
 
 namespace GetWDNumber
 {
-	/// <summary>
-	/// Form1 的摘要说明。
-	/// </summary>
-	public class Form1 : System.Windows.Forms.Form
+    /// <summary>
+    /// Form1 的摘要说明。
+    /// </summary>
+    public class Form1 : System.Windows.Forms.Form
     {
         #region 界面控件
         private System.Windows.Forms.Label label1;
-		private System.Windows.Forms.TextBox textBox1;
-		private System.Windows.Forms.Label label2;
-		private System.Windows.Forms.TextBox textBox2;
-		private System.Windows.Forms.TextBox textBox3;
+        private System.Windows.Forms.TextBox textBox1;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.TextBox textBox2;
+        private System.Windows.Forms.TextBox textBox3;
         private System.Windows.Forms.Label label3;
-		private System.Windows.Forms.Button button1;
-		private System.Windows.Forms.Button button2;
-		private System.Windows.Forms.Label label5;
-		private System.Windows.Forms.ComboBox comboBox1;
+        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Button button2;
+        private System.Windows.Forms.Label label5;
+        private System.Windows.Forms.ComboBox comboBox1;
+
+        private Label label6;
+        private Label label7;
+        private GroupBox groupBox1;
+        private GroupBox groupBox2;
+        private ListBox listBox1;
         #endregion
 
         #region 自定义变量
-        private int wildcardLen; // 通配符长度
         private bool is_start;
         string startNum;
         string endNum;
         string partNum;
-
+        string pasueNum;
         string[] seqList = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F" };
 
-        private static Mutex m = new Mutex(); 
+        private static Mutex m = new Mutex();
+        Thread myThread = null;
+        private static string write_file_path =System.AppDomain.CurrentDomain.BaseDirectory + DateTime.Now.ToString("yyyyMMdd")+".txt";
 
         #region country
         string[,] countryCode = {
@@ -231,51 +239,62 @@ namespace GetWDNumber
         #endregion
 
         #endregion
-        private Label label6;
-        private Label label7;
-        private GroupBox groupBox1;
-        private GroupBox groupBox2;
-        private ListBox listBox1;
 
         #region 系统生成
         /// <summary>
-		/// 必需的设计器变量。
-		/// </summary>
-		private System.ComponentModel.Container components = null;
+        /// 必需的设计器变量。
+        /// </summary>
+        private System.ComponentModel.Container components = null;
 
-		public Form1()
-		{
-			//
-			// Windows 窗体设计器支持所必需的
-			//
-			InitializeComponent();
+        public Form1()
+        {
+            //
+            // Windows 窗体设计器支持所必需的
+            //
+            InitializeComponent();
 
             setStartAndEnd(1);
 
-		}
+            MyConfigSection config = readConfig();
+            if (config != null)
+            {
+                this.textBox1.Text = config.PartNumber;
+                if (config.PasueNumber == null || config.PasueNumber.Length <= 0)
+                {
+                    this.textBox2.Text = config.StartNumber;
+                }
+                else
+                {
+                    this.textBox2.Text = config.PasueNumber;
+                }
+                this.textBox3.Text = config.EndNumber;
+                this.comboBox1.Text = config.Country;
+            }
 
-		/// <summary>
-		/// 清理所有正在使用的资源。
-		/// </summary>
-		protected override void Dispose( bool disposing )
-		{
-			if( disposing )
-			{
-				if (components != null) 
-				{
-					components.Dispose();
-				}
-			}
-			base.Dispose( disposing );
-		}
+        }
 
-		#region Windows 窗体设计器生成的代码
-		/// <summary>
-		/// 设计器支持所需的方法 - 不要使用代码编辑器修改
-		/// 此方法的内容。
-		/// </summary>
-		private void InitializeComponent()
-		{
+        /// <summary>
+        /// 清理所有正在使用的资源。
+        /// </summary>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (components != null)
+                {
+                    components.Dispose();
+                }
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Windows 窗体设计器生成的代码
+        /// <summary>
+        /// 设计器支持所需的方法 - 不要使用代码编辑器修改
+        /// 此方法的内容。
+        /// </summary>
+        private void InitializeComponent()
+        {
             this.label1 = new System.Windows.Forms.Label();
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
@@ -356,6 +375,7 @@ namespace GetWDNumber
             // 
             // button2
             // 
+            this.button2.Enabled = false;
             this.button2.Location = new System.Drawing.Point(342, 279);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(75, 23);
@@ -630,118 +650,137 @@ namespace GetWDNumber
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "WD序号查询";
             this.TopMost = true;
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.Form1_FormClosed);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
             this.ResumeLayout(false);
 
-		}
-		#endregion
+        }
+        #endregion
 
-		/// <summary>
-		/// 应用程序的主入口点。
-		/// </summary>
-		[STAThread]
-		static void Main() 
-		{
+        /// <summary>
+        /// 应用程序的主入口点。
+        /// </summary>
+        [STAThread]
+        static void Main()
+        {
             Control.CheckForIllegalCrossThreadCalls = false;
-			Application.Run(new Form1());
-		}
+            Application.Run(new Form1());
+        }
         #endregion
 
         const string sResponseEncoding = "gb2312";
         //http://websupport.wdc.com/warranty/serialinput.asp?custtype=end&requesttype=warranty&lang=cn
-		//http://websupport.wdc.com/warranty/serialinput.asp
-		//确定
-		private void button1_Click(object sender, System.EventArgs e)
-		{
-            
-
+        //http://websupport.wdc.com/warranty/serialinput.asp
+        //确定
+        private void button1_Click(object sender, System.EventArgs e)
+        {
+            if (is_start) { writeLog("任务正在进行中"); return; }
+            is_start = true;
+            this.button1.Enabled = false;
+            this.button2.Enabled = true;
             ParameterizedThreadStart ParStart = new ParameterizedThreadStart(ThreadProc);
-            Thread myThread = new Thread(ParStart);
+            myThread = new Thread(ParStart);
             myThread.Start(this);
-            
-            
-		}
+
+        }
 
         public static void ThreadProc(object o)
         {
             Form1 f = (Form1)o;
-            string serialList = string.Empty;
-            List<string> listSeq = f.getWildCardSeq();
-            if (listSeq==null || listSeq.Count<=0)
+            try
             {
-                f.writeLog("数据无效，请检查数据后提交");
-                return;
-            }
 
-            int tasks = listSeq.Count / 100 + 1;
-            int nowTask = 0;
-            int nTask = 1;
-            f.writeLog("任务开始，查询数据总数为：" + listSeq.Count + " 批次:" + tasks+" 每批次:100个");
-
-            listSeq.Add("----------");
-            foreach (string s in listSeq)
-            {
-                bool isLastLine = false;
-                if ("----------".Equals(s))
+                string serialList = string.Empty;
+                List<string> listSeq = f.getWildCardSeq();
+                if (listSeq == null || listSeq.Count <= 0)
                 {
-                    isLastLine = true;
-                }
-                if (!isLastLine)
-                {
-                    serialList += f.partNum + s;
-                    serialList += ",";
-                    
+                    f.writeLog("数据无效，请检查数据后提交");
+                    return;
                 }
 
-                nowTask++;
-                if (nowTask % 100 == 0 || isLastLine)
+                int tasks = listSeq.Count / 100 + 1;
+                int nowTask = 0;
+                int nTask = 1;
+                f.writeLog("任务开始，查询数据总数为：" + listSeq.Count + " 批次:" + tasks + " 每批次:100个");
+
+                listSeq.Add("----------");
+                string nowNum = "";
+                foreach (string s in listSeq)
                 {
-                    f.writeLog("开始查询第" + nTask + "批数据");
-                    nTask++;
-                    if (serialList.Length <= 0)
+                    bool isLastLine = false;
+                    if ("----------".Equals(s))
                     {
-                        f.writeLog("数据无效，请检查数据后提交");
-                        return;
+                        isLastLine = true;
                     }
-                    serialList = serialList.Substring(0, serialList.Length - 1);                    
-                    string countryCode = f.findCountryCode(f.comboBox1.Text.Trim());
-
-                    string responseData = f.postData(countryCode, serialList);
-                    List<string[]> l = parseData(responseData);
-
-                    int nRigh = 0;
-                    int nFail = 0;
-                    foreach (string[] ss in l)
+                    if (!isLastLine)
                     {
-                        if (ss[2].Equals("有限保修期限内"))
+                        serialList += f.partNum + s;
+                        serialList += ",";
+                        nowNum = s;
+                    }
+
+                    nowTask++;
+                    if (nowTask % 100 == 0 || isLastLine)
+                    {
+                        f.writeLog("开始查询第" + nTask + "批数据");
+                        nTask++;
+                        if (serialList.Length <= 0)
                         {
-                            string line = f.comboBox1.Text + "," + ss[0] + "," + ss[1] + "," + ss[2] + "," + ss[3];
-                            Debug.WriteLine(line);
-                            f.writeLog(line);
-                            nRigh++;
+                            f.writeLog("数据无效，请检查数据后提交");
+                            return;
                         }
-                        else nFail++;
+                        serialList = serialList.Substring(0, serialList.Length - 1);
+                        string countryCode = f.findCountryCode(f.comboBox1.Text.Trim());
+
+                        string responseData = f.postData(countryCode, serialList);
+                        List<string[]> l = parseData(responseData);
+
+                        int nRigh = 0;
+                        int nFail = 0;
+                        foreach (string[] ss in l)
+                        {
+                            if (ss[2].Equals("有限保修期限内"))
+                            {
+                                string line = f.comboBox1.Text + "," + ss[0] + "," + ss[1] + "," + ss[2] + "," + ss[3];
+                                Debug.WriteLine(line);
+                                //f.writeLog(line);
+                                Export.write2txt(write_file_path,line);
+                                nRigh++;
+                            }
+                            else nFail++;
+                        }
+
+                        f.writeLog("第"+nTask+"批次"+"查询完毕,成功:" + nRigh + " 失败:" + nFail);
+
+                        f.pasueNum = nowNum;
+
+                        serialList = string.Empty;
+                        nowTask = 0;
                     }
-
-                    f.writeLog("查询完毕,成功:" + nRigh + " 失败:" + nFail);
-
-                    serialList = string.Empty;
-                    nowTask = 0;
                 }
             }
-            
+            catch (Exception e)
+            {
+                f.writeLog(e.Message);
+            }
+            finally
+            {
+                f.is_start = false;
+                f.button1.Enabled = true;
+                f.button2.Enabled = false;
+            }
 
-            
+
 
             //for (int i = 0; i < 10; i++)
             //{
             //    Console.WriteLine("ThreadPorc:{0}", i);
             //    Thread.Sleep(1000);//将当前进程阻塞指定的毫秒数  
             //}
-        }  
+        }
 
         void writeLog(string log)
         {
@@ -763,7 +802,7 @@ namespace GetWDNumber
             HttpWReq.CookieContainer = cc;
             HttpWReq.Method = "POST";
             HttpWReq.ContentType = "application/x-www-form-urlencoded";
-            string postdata = "NoErrorMessage=false&ispostback=y&cmd=continue&custtype=end&requesttype=warranty&countryobjid=" + countryCode + "&seriallist="+serialList+"&btncontinue=%BC%CC%D0%F8";
+            string postdata = "NoErrorMessage=false&ispostback=y&cmd=continue&custtype=end&requesttype=warranty&countryobjid=" + countryCode + "&seriallist=" + serialList + "&btncontinue=%BC%CC%D0%F8";
             //string postdata =   "NoErrorMessage=false&ispostback=y&cmd=continue&custtype=end&requesttype=warranty&countryobjid=268435494&seriallist=WM1234567890%2CXW1729L1X8400053603&btncontinue=%BC%CC%D0%F8";
 
             byte[] byte1 = Encoding.ASCII.GetBytes(postdata);
@@ -802,19 +841,19 @@ namespace GetWDNumber
             CookieContainer cc = new CookieContainer();
             HttpWebRequest HttpWReq =
             (HttpWebRequest)WebRequest.Create("http://websupport.wdc.com/warranty/serialinput.asp?custtype=end&requesttype=warranty&lang=cn");
-            HttpWReq.CookieContainer = cc;          
+            HttpWReq.CookieContainer = cc;
 
             HttpWebResponse HttpWResp = (HttpWebResponse)HttpWReq.GetResponse();
             int i = HttpWResp.ResponseUri.AbsoluteUri.IndexOf("?url=");
             if (i > 0)
             {
-                sDesUrl = "http://websupport.wdc.com"+HttpWResp.ResponseUri.AbsoluteUri.Substring(i + 5);
+                sDesUrl = "http://websupport.wdc.com" + HttpWResp.ResponseUri.AbsoluteUri.Substring(i + 5);
             }
 
-            
-           // Cookie cookie = cc.Cookies["ASPSESSIONIDQQDDACRS"];
+
+            // Cookie cookie = cc.Cookies["ASPSESSIONIDQQDDACRS"];
             ckclReturn = cc.GetCookies(HttpWResp.ResponseUri);
-         
+
             HttpWResp.Close();
 
 
@@ -824,7 +863,7 @@ namespace GetWDNumber
             HttpWResp = (HttpWebResponse)HttpWReq.GetResponse();
             HttpWResp.Close();
             HttpWResp = null;
-           
+
             return ckclReturn;
         }
 
@@ -874,7 +913,7 @@ namespace GetWDNumber
             }
             else
             {
-                int n = findSeqIndex(s[index]) + num-seqList.Length;
+                int n = findSeqIndex(s[index]) + num - seqList.Length;
                 bytes[index] = seqList[n].ToCharArray()[0];
                 ss = new string(bytes);
                 ss = addNum(ss, index - 1, 1);
@@ -892,10 +931,10 @@ namespace GetWDNumber
             }
             return 0;
         }
-		
+
         //获取所有任务序列
-		List<string> getWildCardSeq()
-		{
+        List<string> getWildCardSeq()
+        {
             if (partNum == null || partNum.Length < 3) return null;
             if (startNum == null || endNum == null) return null;
             if (startNum.Length != endNum.Length) return null;
@@ -905,22 +944,20 @@ namespace GetWDNumber
             string s = startNum;
             string ss = endNum;
             l.Add(s);
-            while (0!=compareNumber(s,ss))
+            while (0 != compareNumber(s, ss))
             {
                 s = addNum(s, s.Length - 1, 1);
                 l.Add(s);
-            }            
+            }
 
             return l;
-		}
+        }
 
         //开始符
         private void textBox2_TextChanged(object sender, EventArgs e)
         {
             startNum = this.textBox2.Text.Trim();
-
             makeSeqList();
-
         }
 
         private void makeSeqList()
@@ -947,16 +984,15 @@ namespace GetWDNumber
 
         private void button2_Click(object sender, EventArgs e)
         {
-            //<table border="0" cellpadding="4" cellspacing="0" width="100%">
-            FileStream fs = File.Open(@"d:\111.txt", FileMode.Open);
-            byte[] data = new byte[fs.Length];
-            fs.Read(data, 0, data.Length);            
-            fs.Close();
+            //强制结束线程
+            try
+            {
+                myThread.Abort();
+            }
+            catch (Exception e1)
+            {
 
-
-            string s = Encoding.GetEncoding(sResponseEncoding).GetString(data);
-
-            parseData(s);
+            }
         }
 
         private static List<string[]> parseData(string s)
@@ -995,7 +1031,7 @@ namespace GetWDNumber
                         {
                             GroupCollection groups = match1.Groups;
                             //Debug.WriteLine(groups["word"].Value.Trim());
-                            
+
                             string data = groups["word"].Value.Trim();
                             if (data.EndsWith("&dagger;</a>")) //特殊处理日期
                             {
@@ -1009,13 +1045,41 @@ namespace GetWDNumber
                         }
                         l.Add(ss.ToArray());
                     }
-                   
+
                 }
             }
             return l;
         }
 
+        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            saveConfig();
+        }
 
-        
+        MyConfigSection readConfig()
+        {
+            Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            MyConfigSection data = config.Sections["last"] as MyConfigSection;
+
+            return data;
+        }
+
+        private void saveConfig()
+        {
+            Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            MyConfigSection data = new MyConfigSection();
+            data.OperTime = DateTime.Now;
+            data.PartNumber = this.textBox1.Text.Trim();
+            data.StartNumber = this.textBox2.Text.Trim();
+            data.EndNumber = this.textBox3.Text.Trim();
+            data.Country = this.comboBox1.Text.Trim();
+            data.PasueNumber = pasueNum;
+            
+            //config.SectionGroups.Remove("last");
+            config.Sections.Remove("last");
+            config.Sections.Add("last", data);
+            config.Save(ConfigurationSaveMode.Minimal);
+        }
+
     }
 }
