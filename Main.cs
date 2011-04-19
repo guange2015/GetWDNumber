@@ -45,7 +45,7 @@ namespace GetWDNumber
         string endNum;
         string partNum;
         string pasueNum;
-        string[] seqList = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F" };
+        string[] seqList = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
         private static Mutex m = new Mutex();
         Thread myThread = null;
@@ -353,7 +353,7 @@ namespace GetWDNumber
             this.textBox3.Name = "textBox3";
             this.textBox3.Size = new System.Drawing.Size(89, 21);
             this.textBox3.TabIndex = 5;
-            this.textBox3.Text = "F";
+            this.textBox3.Text = "9";
             this.textBox3.TextChanged += new System.EventHandler(this.textBox3_TextChanged);
             // 
             // label3
@@ -692,7 +692,6 @@ namespace GetWDNumber
             Form1 f = (Form1)o;
             try
             {
-
                 string serialList = string.Empty;
                 List<string> listSeq = f.getWildCardSeq();
                 if (listSeq == null || listSeq.Count <= 0)
@@ -773,13 +772,6 @@ namespace GetWDNumber
                 f.button2.Enabled = false;
             }
 
-
-
-            //for (int i = 0; i < 10; i++)
-            //{
-            //    Console.WriteLine("ThreadPorc:{0}", i);
-            //    Thread.Sleep(1000);//将当前进程阻塞指定的毫秒数  
-            //}
         }
 
         void writeLog(string log)
@@ -1024,7 +1016,7 @@ namespace GetWDNumber
                     Regex rgx1 = new Regex(pattern1, RegexOptions.IgnoreCase | RegexOptions.Multiline);
                     MatchCollection matches1 = rgx1.Matches(trContent);
 
-                    if (matches1.Count == 4)
+                    if (matches1.Count >= 4)
                     {
                         List<string> ss = new List<string>();
                         foreach (Match match1 in matches1)
